@@ -1,0 +1,72 @@
+#!groovy
+
+def JENKINSFILE_COMMON = './ci/Jenkinsfile-common'
+def common = null;
+
+pipeline {
+    agent {
+        docker {
+            image "node:6"
+            label "dind"
+        }
+    }
+    stages {
+        stage('setup') {
+            steps {
+                script {
+                    common = load JENKINSFILE_COMMON
+                    common.cleanCheckout()
+                }
+            }
+        }
+
+        stage('install') {
+            steps {
+                script {
+                    npmInstall(common)
+                }
+            }
+        }
+
+        stage('build') {
+            steps {
+                sh "npm run build"
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                common.success(currentBuild)
+            }
+        }
+
+        failure {
+            script {
+                common.failure()
+            }
+        }
+        always {
+            script {
+                common.cleanWorkspace()
+            }
+        }
+    }
+}
+
+def npmInstall(common) {
+    try {
+        common.npmConfig()
+        npmInstallLocals()
+    } catch (ex) {
+        common.clearRegistry()
+        npmInstallLocals()
+    }
+}
+
+def npmInstallLocals() {
+    configFileProvider([configFile(fileId: 'npmrc.artifactory.ge-apm-m', targetLocation: '.npmrc')]) {
+        sh 'npm install'
+    }
+}

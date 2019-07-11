@@ -1,0 +1,124 @@
+EMAIL_LIST = 'gregory1.king@ge.com'
+
+/*
+ *  stage: setup
+ */
+def setup() {
+    cleanCheckout()
+    setupEnv()
+    npmInstall()
+}
+
+def cleanCheckout() {
+    sh 'rm -rf ./*'
+    checkout scm
+}
+
+def setupEnv() {
+    sh 'echo "chromedriver_ver=2.37" > .env'
+}
+
+def npmInstall() {
+    try {
+        npmConfig()
+        npmInstallGlobals()
+        npmInstallLocals()
+    } catch (ex) {
+        clearRegistry()
+        npmInstallGlobals()
+        npmInstallLocals()
+    }
+}
+
+def npmConfig() {
+    def CACHING_REPO_URL = 'http://nexus.marathon.l4lb.thisdcos.directory:8081/nexus/repository/npm-remote/'
+    sh 'npm config set strict-ssl false'
+    sh "npm config set registry ${CACHING_REPO_URL}"
+}
+
+def npmInstallGlobals() {
+    sh 'npm install findup-sync nopt grunt-known-options -g'
+    sh 'npm install grunt -g'
+}
+
+def npmInstallLocals() {
+    configFileProvider([configFile(fileId: 'npmrc.artifactory.ge-apm-m', targetLocation: '.npmrc')]) {
+        sh 'npm install --only=prod'
+    }
+}
+
+def clearRegistry() {
+    sh 'npm config delete registry'
+}
+
+/*
+ *  stage: test
+ */
+def test(conf, suite, tags) {
+    sh "grunt test --conf=${conf} --suite=${suite} --tags=${tags}"
+}
+
+def testNoSuite(conf) {
+    sh "grunt noSuite --conf=${conf}"
+}
+
+/*
+ *  post: success
+ */
+def success(currentBuild) {
+    notifySuccess(currentBuild)
+}
+
+def notifySuccess(currentBuild) {
+    if (isBackToNormal(currentBuild)) {
+        echo 'Your pipeline is back to normal'
+        emailext (
+          subject: "Build is back to normal: ${env.JOB_NAME}",
+          body: "Your pipeline: '${env.JOB_NAME} [${env.BUILD_NUMBER}]': was successful. Check console output at ${env.BUILD_URL}/console",
+          to: EMAIL_LIST
+        )
+    }
+}
+
+def isBackToNormal(currentBuild) {
+    currentBuild.previousBuild != null && currentBuild.previousBuild.result != 'SUCCESS';
+}
+
+/*
+ *  post: failure
+ */
+def failure() {
+    notifyFailure()
+}
+
+def notifyFailure() {
+    echo "Your pipeline failed sending notification"
+    emailext (
+        subject: "Build failed: ${env.JOB_NAME}",
+        body: "Your pipeline: '${env.JOB_NAME} [${env.BUILD_NUMBER}]': has an error. Check console output at ${env.BUILD_URL}/console",
+        to: EMAIL_LIST
+    )
+}
+
+/*
+ *  post: always
+ */
+def always() {
+    reportResults()
+    archiveLogs()
+    cleanWorkspace()
+}
+
+def reportResults() {
+    cucumber 'Reports/json_report/rally.json'
+}
+
+def archiveLogs() {
+    archiveArtifacts artifacts: 'Reports/all-logs.log', allowEmptyArchive: true
+}
+
+def cleanWorkspace() {
+    cleanWs notFailBuild: true
+}
+
+return this;

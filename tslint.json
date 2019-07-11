@@ -1,0 +1,4 @@
+{
+  "extends": ["./tools/typescript/tslint-default.json"],
+  "rules": {}
+}

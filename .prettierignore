@@ -1,0 +1,16 @@
+.editorconfig
+.env
+.git
+.gitattributes
+.gitignore
+.idea
+.prettierignore
+.vscode
+**/*.feature
+CHANGELOG.md
+package.json
+Reports
+test/**/*.js
+tools/**/*.js
+ts-node*
+*.log

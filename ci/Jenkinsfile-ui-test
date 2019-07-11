@@ -1,0 +1,73 @@
+#!groovy
+
+def DAYS_TO_KEEP = '5'
+def BUILDS_TO_KEEP = '10'
+def DOCKER_IMAGE = 'registry.gear.ge.com/dig-apm/apmproui-node6-chrome67'
+def DOCKER_LABEL = 'dind'
+def ENV_NODE_PROXY = 'NONE'
+def ENV_CHROME_DRIVER = '2.37'
+def ENV_CHROME_HEADLESS = 'true'
+def JENKINSFILE_COMMON = './ci/Jenkinsfile-common'
+def common = null;
+
+pipeline {
+    agent {
+        docker {
+            image DOCKER_IMAGE
+            label DOCKER_LABEL
+        }
+    }
+
+    options {
+        buildDiscarder(logRotator(
+           daysToKeepStr: DAYS_TO_KEEP,
+           numToKeepStr: BUILDS_TO_KEEP,
+           artifactDaysToKeepStr: DAYS_TO_KEEP,
+           artifactNumToKeepStr: BUILDS_TO_KEEP
+       ))
+    }
+
+    environment {
+        chromedriver_ver = "${ENV_CHROME_DRIVER}"
+        CHROME_HEADLESS = "${ENV_CHROME_HEADLESS}"
+    }
+
+    stages {
+        stage('setup') {
+            steps {
+                script {
+                    common = load JENKINSFILE_COMMON
+                    common.setup()
+                }
+            }
+        }
+
+        stage('test') {
+            steps {
+                script {
+                    common.test("${env.conf}", "${env.suites}", "${env.tags}")
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                common.success(currentBuild)
+            }
+        }
+
+        failure {
+            script {
+                common.failure()
+            }
+        }
+
+        always {
+            script {
+                common.always()
+            }
+        }
+    }
+}

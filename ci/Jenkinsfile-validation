@@ -1,0 +1,90 @@
+#!groovy
+
+def DAYS_TO_KEEP = '5'
+def BUILDS_TO_KEEP = '10'
+def DOCKER_IMAGE = 'registry.gear.ge.com/dig-apm/apmproui-node6-chrome67'
+def DOCKER_LABEL = 'dind'
+def ENV_NODE_PROXY = 'NONE'
+def ENV_CHROME_DRIVER = '2.37'
+def ENV_CHROME_HEADLESS = 'true'
+def JENKINSFILE_COMMON = './ci/Jenkinsfile-common'
+def common = null;
+
+pipeline {
+    agent {
+        docker {
+            image DOCKER_IMAGE
+            label DOCKER_LABEL
+        }
+    }
+
+    options {
+        buildDiscarder(logRotator(
+           daysToKeepStr: DAYS_TO_KEEP,
+           numToKeepStr: BUILDS_TO_KEEP,
+           artifactDaysToKeepStr: DAYS_TO_KEEP,
+           artifactNumToKeepStr: BUILDS_TO_KEEP
+       ))
+    }
+
+    environment {
+        chromedriver_ver = "${ENV_CHROME_DRIVER}"
+        CHROME_HEADLESS = "${ENV_CHROME_HEADLESS}"
+    }
+
+    stages {
+        stage('setup') {
+            steps {
+                script {
+                    common = load JENKINSFILE_COMMON
+                    common.setup()
+                }
+            }
+        }
+
+        stage('test') {
+            steps {
+                script {
+                    common.test("${env.conf}", "${env.suites}", "${env.tags}")
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                if (common.isBackToNormal(currentBuild)) {
+                    echo '${env.application} passed validation after previously failing'
+                    emailext (
+                        subject: "${env.application} passed validation after previously failing",
+                        body: "${env.application} passed validation after previously failing (${env.JOB_NAME} [${env.BUILD_NUMBER}]). Check console output at ${env.BUILD_URL}/console",
+                        to: "${env.emailOnFailure}"
+                    )
+                } else {
+                    echo '${env.application} passed validation'
+                    emailext (
+                        subject: "${env.application} passed validation",
+                        body: "${env.application} passed validation (${env.JOB_NAME} [${env.BUILD_NUMBER}]). Check console output at ${env.BUILD_URL}/console",
+                        to: "${env.emailOnSuccess}"
+                    )
+                }
+            }
+        }
+
+        failure {
+            echo '${env.application} failed validation'
+            emailext (
+                subject: "${env.application} failed validation",
+                body: "${env.application} failed validation (${env.JOB_NAME} [${env.BUILD_NUMBER}]). Check console output at ${env.BUILD_URL}/console",
+                to: "${env.emailOnFailure}"
+            )
+        }
+
+        always {
+            script {
+                common.always()
+            }
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "extends": ["tslint-config-airbnb", "tslint-plugin-prettier", "tslint-config-prettier"],
+  "rules": {
+    "prettier": true,
+    "no-increment-decrement": false,
+    "cyclomatic-complexity": [true, 10],
+    "max-func-body-length": [
+      true,
+      {
+        "func-body-length": 15,
+        "ignore-comments": true
+      }
+    ]
+  }
+}

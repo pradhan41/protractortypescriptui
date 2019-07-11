@@ -1,0 +1,10 @@
+{
+    "launcher": {
+        "confs": ["**/*.conf.js", "!**/*-base.conf.js"],
+        "suites": ["query", "behaviors", "familyManagement", "searchConfig", "advancedSearch", "siteReference"],
+        "tags": ["@deploy", "@regression", "@smoke", "@workflow", "@wip", "@cleanup"],
+        "environment": {
+            "CHROME_HEADLESS": ["true"]
+        }
+    }
+}

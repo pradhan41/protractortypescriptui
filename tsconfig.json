@@ -1,0 +1,11 @@
+{
+  "extends": "./tools/typescript/tsconfig-default.json",
+  "include": ["./test/**/*", "./tools/**/*"],
+  "compilerOptions": {
+    "paths": {
+      "@tools/*": ["./tools/*"],
+      "@pages/*": ["./test/pages/*"],
+      "@step_definitions/*": ["./test/step_definitions/*"]
+    }
+  }
+}
